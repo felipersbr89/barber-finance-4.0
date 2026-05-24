@@ -31,7 +31,7 @@ barber-finance/
 ├── investimentos.html
 ├── metas.html
 ├── perfil.html
-└── login.html
+└── index.html
 ```
 
 ---
@@ -139,7 +139,7 @@ npx serve .
 # Instale a extensão "Live Server" e clique em "Go Live"
 ```
 
-Acesse: [http://localhost:3000/login.html](http://localhost:3000/login.html)
+Acesse: [http://localhost:3000/index.html](http://localhost:3000/index.html)
 
 ---
 

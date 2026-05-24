@@ -35,21 +35,21 @@ const Auth = {
 
   async signOut() {
     await db.auth.signOut()
-    window.location.href = 'login.html'
+    window.location.href = 'index.html'
   },
 
   // Protege a página: redireciona para login se não autenticado
   async requireAuth() {
     const user = await this.getUser()
     if (!user) {
-      window.location.href = 'login.html'
+      window.location.href = 'index.html'
       return null
     }
     App.user = user
     return user
   },
 
-  // Redireciona para dashboard se já autenticado (para login.html)
+  // Redireciona para dashboard se já autenticado (para index.html)
   async redirectIfAuth(dest = 'dashboard.html') {
     const user = await this.getUser()
     if (user) {
