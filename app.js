@@ -5,7 +5,6 @@
 ═══════════════════════════════════════════ */
 
 // ── 1. SUPABASE CONFIG ──────────────────────
-// 👇 Substitua pelos seus dados reais UMA VEZ AQUI
 const SUPABASE_URL  = 'https://ixgwhyaponyssvczcabn.supabase.co'
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml4Z3doeWFwb255c3N2Y3pjYWJuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk0MTA5NDYsImV4cCI6MjA5NDk4Njk0Nn0.uSyPDUn87ERrrZpzK4DmIepqO_Sbcvwt7RzlN4QB8FM'
 
@@ -18,11 +17,22 @@ window.App = {
   db,
 }
 
+// FIX: expõe db globalmente para que dashboard.js e demais módulos
+// sempre encontrem a variável, independente da ordem de carregamento
+window.db = db
+
 // ── 3. AUTH ─────────────────────────────────
 const Auth = {
+  // FIX: try/catch em getSession evita que erros de extensões do browser
+  // (ex: "message channel closed") derrubem toda a Promise chain
   async getUser() {
-    const { data: { session } } = await db.auth.getSession()
-    return session?.user || null
+    try {
+      const { data: { session } } = await db.auth.getSession()
+      return session?.user || null
+    } catch (e) {
+      console.warn('[Auth.getUser] erro ao obter sessão:', e.message)
+      return null
+    }
   },
 
   async signIn(email, password) {
@@ -34,11 +44,11 @@ const Auth = {
   },
 
   async signOut() {
-    await db.auth.signOut()
+    try { await db.auth.signOut() } catch (e) { /* ignora erro no signOut */ }
     window.location.href = 'index.html'
   },
 
-  // Protege a página: redireciona para login se não autenticado
+  // Protege a página — redireciona para login se não autenticado
   async requireAuth() {
     const user = await this.getUser()
     if (!user) {
@@ -49,7 +59,7 @@ const Auth = {
     return user
   },
 
-  // Redireciona para dashboard se já autenticado (para index.html)
+  // Redireciona para dashboard se já autenticado (usado no index.html)
   async redirectIfAuth(dest = 'dashboard.html') {
     const user = await this.getUser()
     if (user) {
@@ -67,25 +77,26 @@ const Auth = {
 
 // ── 4. LAYOUT: SIDEBAR & NAVIGATION ─────────
 const Layout = {
-  // Página ativa (inferida da URL)
+  // FIX: quando a URL é a raiz do domínio (GitHub Pages sem path),
+  // pop() retorna '' ou 'index' — normaliza sempre para 'dashboard'
   currentPage() {
-    const path = window.location.pathname.split('/').pop().replace('.html', '')
-    return path || 'dashboard'
+    const file = window.location.pathname.split('/').pop().replace('.html', '')
+    if (!file || file === 'index') return 'dashboard'
+    return file
   },
 
-  // Renderiza sidebar + topbar mobile + bottom nav
   render(container) {
     const page = this.currentPage()
     const email = App.user?.email || ''
     const initials = email.charAt(0).toUpperCase()
 
     const navItems = [
-      { id: 'dashboard',     label: 'Dashboard',     icon: iconDashboard() },
-      { id: 'receitas',      label: 'Receitas',       icon: iconReceitas() },
-      { id: 'despesas',      label: 'Despesas',       icon: iconDespesas() },
-      { id: 'investimentos', label: 'Investimentos',  icon: iconInvest() },
-      { id: 'metas',         label: 'Metas',          icon: iconMetas() },
-      { id: 'perfil',        label: 'Perfil',         icon: iconPerfil() },
+      { id: 'dashboard',     label: 'Dashboard',    icon: iconDashboard() },
+      { id: 'receitas',      label: 'Receitas',      icon: iconReceitas() },
+      { id: 'despesas',      label: 'Despesas',      icon: iconDespesas() },
+      { id: 'investimentos', label: 'Investimentos', icon: iconInvest() },
+      { id: 'metas',         label: 'Metas',         icon: iconMetas() },
+      { id: 'perfil',        label: 'Perfil',        icon: iconPerfil() },
     ]
 
     const navHTML = navItems.map(item => `
@@ -143,7 +154,6 @@ const Layout = {
       </nav>
     `
 
-    // Bind overlay
     document.getElementById('sidebar-overlay').addEventListener('click', () => Layout.closeSidebar())
   },
 
@@ -184,13 +194,11 @@ const Modal = {
   open(id)  { document.getElementById(id)?.classList.remove('hidden') },
   close(id) { document.getElementById(id)?.classList.add('hidden') },
   init() {
-    // Fechar clicando no overlay
     document.querySelectorAll('.modal-overlay').forEach(overlay => {
       overlay.addEventListener('click', e => {
         if (e.target === overlay) overlay.classList.add('hidden')
       })
     })
-    // Fechar com Escape
     document.addEventListener('keydown', e => {
       if (e.key === 'Escape')
         document.querySelectorAll('.modal-overlay:not(.hidden)').forEach(m => m.classList.add('hidden'))
@@ -266,9 +274,9 @@ function iconCheck()     { return `<svg viewBox="0 0 24 24" fill="none" stroke="
 function iconArrowUp()   { return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg>` }
 function iconArrowDown() { return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="17" y1="7" x2="7" y2="17"/><polyline points="17 17 7 17 7 7"/></svg>` }
 
-// Expõe globalmente
-window.Auth  = Auth
+// ── 9. EXPÕE GLOBALMENTE ─────────────────────
+window.Auth   = Auth
 window.Layout = Layout
-window.Toast = Toast
-window.Modal = Modal
-window.Utils = Utils
+window.Toast  = Toast
+window.Modal  = Modal
+window.Utils  = Utils
